@@ -16,12 +16,11 @@ public class User {
     @Column(name = "login", unique = true, nullable = false)
     private String login;
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "user", fetch = FetchType.EAGER)
     private List<Account> accountList = new ArrayList<>();
 
-    public User(String login, List<Account> accountList) {
+    public User(String login) {
         this.login = login;
-        this.accountList = accountList;
     }
 
     public User() {
@@ -43,12 +42,20 @@ public class User {
         this.accountList = accountList;
     }
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     @Override
     public String toString() {
         return "User{" +
                 "id=" + id +
                 ", login='" + login + '\'' +
-                ", accountList=" + accountList +
+                ", accountsCount=" + (accountList != null ? accountList.size() : 0) +
                 '}';
     }
 }
