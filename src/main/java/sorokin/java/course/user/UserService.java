@@ -5,6 +5,7 @@ import org.hibernate.SessionFactory;
 import org.springframework.stereotype.Component;
 import sorokin.java.course.account.Account;
 import sorokin.java.course.account.AccountProperties;
+import sorokin.java.course.helper.TransactionHelper;
 
 import java.util.*;
 
@@ -13,30 +14,26 @@ public class UserService {
 
     private final AccountProperties accountProperties;
     private final SessionFactory sessionFactory;
+    private final TransactionHelper transactionHelper;
 
-    public UserService(AccountProperties accountProperties, SessionFactory sessionFactory) {
+    public UserService(AccountProperties accountProperties,
+                       SessionFactory sessionFactory,
+                       TransactionHelper transactionHelper) {
         this.accountProperties = accountProperties;
         this.sessionFactory = sessionFactory;
+        this.transactionHelper = transactionHelper;
     }
 
     public User createUser(String login) {
         User user = new User(login.trim());
         Account account = new Account(user, accountProperties.getDefaultAmount());
 
-        try (Session session = sessionFactory.openSession()) {
-            try {
-                session.beginTransaction();
-                session.persist(user);
-                session.persist(account);
-                user.getAccountList().add(account);
-                session.getTransaction().commit();
-            } catch (Exception e) {
-                session.getTransaction().rollback();
-                throw e;
-            }
-        }
-
-        return user;
+        return transactionHelper.executeInTransaction(session -> {
+            session.persist(user);
+            session.persist(account);
+            user.getAccountList().add(account);
+            return user;
+        });
     }
 
     public User findUserById(Long id) {
