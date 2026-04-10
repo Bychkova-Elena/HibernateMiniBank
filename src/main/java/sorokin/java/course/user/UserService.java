@@ -15,6 +15,7 @@ public class UserService {
     private final AccountProperties accountProperties;
     private final SessionFactory sessionFactory;
     private final TransactionHelper transactionHelper;
+    private final Set<String> takenLogins;
 
     public UserService(AccountProperties accountProperties,
                        SessionFactory sessionFactory,
@@ -22,16 +23,22 @@ public class UserService {
         this.accountProperties = accountProperties;
         this.sessionFactory = sessionFactory;
         this.transactionHelper = transactionHelper;
+        this.takenLogins = new HashSet<>(getUsersLogins());
     }
 
     public User createUser(String login) {
-        User user = new User(login.trim());
+        String normalizedLogin = validateLogin(login);
+        if (takenLogins.contains(normalizedLogin)) {
+            throw new IllegalArgumentException("User already exists with login=%s".formatted(normalizedLogin));
+        }
+        User user = new User(normalizedLogin);
         Account account = new Account(user, accountProperties.getDefaultAmount());
 
         return transactionHelper.executeInTransaction(session -> {
             session.persist(user);
             session.persist(account);
             user.getAccountList().add(account);
+            takenLogins.add(normalizedLogin);
             return user;
         });
     }
@@ -56,6 +63,20 @@ public class UserService {
             return session.createQuery(
                             "SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.accountList", User.class)
                     .getResultList();
+        }
+    }
+
+    private String validateLogin(String login) {
+        if (login == null || login.isBlank()) {
+            throw new IllegalArgumentException("login must not be blank");
+        }
+        return login.trim();
+    }
+
+    private List<String> getUsersLogins() {
+        try (Session session = sessionFactory.openSession()) {
+            return session.createQuery("SELECT u.login FROM User u", String.class)
+                    .list();
         }
     }
 }

@@ -17,58 +17,37 @@ public class TransactionHelper {
         this.sessionFactory = sessionFactory;
     }
 
-    public void executeInTransaction(Consumer<Session> action) {
-        Session session = null;
-        Transaction transaction = null;
+    public <T> T executeInTransaction(Function<Session, T> action) {
+        Session session = sessionFactory.getCurrentSession();
+        Transaction tx = session.getTransaction();
+        boolean owner = !tx.isActive();
+
+        if (owner) {
+            tx = session.beginTransaction();
+        }
 
         try {
-            session = sessionFactory.openSession();
-            transaction = session.beginTransaction();
-
-            action.accept(session);
-
-            transaction.commit();
-        } catch (Exception e) {
-            if (transaction != null && transaction.isActive()) {
-                try {
-                    transaction.rollback();
-                } catch (Exception rollbackEx) {
-                    e.addSuppressed(rollbackEx);
-                }
+            T result = action.apply(session);
+            if (owner) {
+                tx.commit();
+            }
+            return result;
+        } catch (RuntimeException e) {
+            if (owner) {
+                tx.rollback();
             }
             throw e;
         } finally {
-            if (session != null && session.isOpen()) {
+            if (owner) {
                 session.close();
             }
         }
     }
 
-    public <T> T executeInTransaction(Function<Session, T> action) {
-        Session session = null;
-        Transaction transaction = null;
-
-        try {
-            session = sessionFactory.openSession();
-            transaction = session.beginTransaction();
-
-            T result = action.apply(session);
-
-            transaction.commit();
-            return result;
-        } catch (Exception e) {
-            if (transaction != null && transaction.isActive()) {
-                try {
-                    transaction.rollback();
-                } catch (Exception rollbackEx) {
-                    e.addSuppressed(rollbackEx);
-                }
-            }
-            throw e;
-        } finally {
-            if (session != null && session.isOpen()) {
-                session.close();
-            }
-        }
+    public void executeInTransaction(Consumer<Session> action) {
+        executeInTransaction(session -> {
+            action.accept(session);
+            return null;
+        });
     }
 }
