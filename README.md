@@ -1,6 +1,6 @@
 # MiniBank (Spring Core)
 
-Консольное учебное банковское приложение на Java + Spring Core.
+Консольное учебное банковское приложение на Java + Spring Core + Hibernate.
 
 ## Что умеет
 - создавать пользователей;
@@ -14,8 +14,9 @@
 ## Технологии
 - Java 21
 - Spring Core (`spring-context`)
+- Hibernate
 - Конфигурация через `@Configuration`, `@PropertySource`, `@Component`
-- Хранение данных в памяти (`Map`)
+- Хранение данных в PostgreSql
 
 ## Архитектура
 - `User`, `Account` — POJO-модели.
@@ -40,6 +41,16 @@
 ```properties
 account.default-amount=500
 account.transfer-commission=0.02
+
+db.driver=org.postgresql.Driver
+db.url=jdbc:postgresql://localhost:5432/bank
+db.username=postgres
+db.password=root
+db.dialect=org.hibernate.dialect.PostgreSQLDialect
+hibernate.hbm2ddl.auto=update
+hibernate.current_session_context_class=thread
+hibernate.show_sql=true
+hibernate.format_sql=true
 ```
 
 ## Запуск
@@ -47,7 +58,16 @@ account.transfer-commission=0.02
 ```bash
 mvn clean package
 ```
-2. Запустить:
+2. Запустить PostgreSql:
+```bash
+docker run --name minibank-postgres \
+-e POSTGRES_DB=bank \
+-e POSTGRES_USER=postgres \
+-e POSTGRES_PASSWORD=root \
+-p 5432:5432 \
+-d postgres:16
+```
+3. Запустить:
 ```bash
 mvn exec:java -Dexec.mainClass="sorokin.java.course.Main"
 ```
